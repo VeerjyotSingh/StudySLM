@@ -1,4 +1,11 @@
+import time
 import pymupdf
+import os
+from tqdm import tqdm
+
+pdf_dir = "/Users/veerjyotsingh/Veerjyot/Computer/IOS app development/StudySLM/NCERT PDF"
+text_dir = "/Users/veerjyotsingh/Veerjyot/Computer/IOS app development/StudySLM/NCERT Text"
+
 
 def readPDF(fileName):
     outName = fileName.replace('.pdf', '.txt')
@@ -25,5 +32,16 @@ def cleanText(fileName):
     file.writelines(correctedlines)
     file.close()
 
-readPDF('nrt(1).pdf')
-cleanText('nrt(1).pdf')
+print("Starting the job")
+start = time.time()
+
+pdf_files = [f for f in os.listdir(pdf_dir) if f.endswith(".pdf")]
+
+for filename in tqdm(pdf_files, desc="Processing NCERT PDFs"):
+    if filename.endswith(".pdf"):
+        readPDF(filename)
+        cleanText(filename)
+
+end = time.time()
+print("✅ All PDFs processed.")
+print("Processing time: {:.2f} seconds.".format(end-start))
