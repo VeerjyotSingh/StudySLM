@@ -1,47 +1,63 @@
+#problem faced PDF may or maynot have a text layer
+#need to check if the text given by pymupdf is real or just noise and use ocr if it fails
+
 import time
 import pymupdf
 import os
 from tqdm import tqdm
+import re
+import unicodedata
+from nostril import ng
+from nostril import nonsense_detector as nd
 
-pdf_dir = "/Users/veerjyotsingh/Veerjyot/Computer/IOS app development/StudySLM/NCERT PDF"
-text_dir = "/Users/veerjyotsingh/Veerjyot/Computer/IOS app development/StudySLM/NCERT Text"
+pdfDir = "/Users/veerjyotsingh/Veerjyot/Computer/IOS app development/StudySLM/NCERT PDF"
+textDir = "/Users/veerjyotsingh/Veerjyot/Computer/IOS app development/StudySLM/NCERT Text"
 
 
-def readPDF(fileName):
-    outName = fileName.replace('.pdf', '.txt')
+def isNonsenseText(text):
+    text = re.sub(r"[^a-zA-Z]", "", text)
+    if nd.nonsense(text):
+        return True
+    else:
+        return False
+
+def readPDFAndWriteClean(fileName):
     doc = pymupdf.open("/Users/veerjyotsingh/Veerjyot/Computer/IOS app development/StudySLM/NCERT PDF/"+fileName)
-    out = open("/Users/veerjyotsingh/Veerjyot/Computer/IOS app development/StudySLM/NCERT Text/"+outName,"wb")
+    correctedLines = []
     for page in doc:
-        text = page.get_text().encode("utf8")
-        out.write(text)
-        out.write(bytes((12,)))
-    out.close()
+        rawText = page.get_text()
+        lines = rawText.splitlines()
 
-def cleanText(fileName):
-    fileName = fileName.replace('.pdf', '.txt')
-    file = open("/Users/veerjyotsingh/Veerjyot/Computer/IOS app development/StudySLM/NCERT Text/"+fileName,"r")
-    lines = file.readlines()
-    correctedlines = []
-    for line in lines:
-        if len(line.strip()) < 5:
-            continue
-        else:
-            correctedlines.append(line.strip() + "\n")
-    file.close()
-    file = open("/Users/veerjyotsingh/Veerjyot/Computer/IOS app development/StudySLM/NCERT Text/" + fileName, "w")
-    file.writelines(correctedlines)
-    file.close()
+        for line in lines:
+            line = unicodedata.normalize("NFKD", line)
+            line = re.sub(r"[^a-zA-Z0-9\s.,;:!?()\[\]{}'\"-]", "", line)
+            line = re.sub(r"\s+", " ", line).strip()
+            if len(re.sub(r"[^a-zA-Z]", "", line)) > 10 and not isNonsenseText(line):
+                if len(line) >= 5 and len(line.split()) > 2:
+                    correctedLines.append(line + "\n")
+    return correctedLines
 
-print("Starting the job")
-start = time.time()
+def writeCorrectedLines(filename,correctedLines,outputPath=textDir):
+    outName = filename.replace('.pdf', '.txt')
+    outputPath = os.path.join(outputPath, outName)
+    with open(outputPath, "w", encoding="utf-8") as f:
+        f.writelines(correctedLines)
+        
+if __name__ == "__main__":
+    print("Starting the job")
+    start = time.time()
 
-pdf_files = [f for f in os.listdir(pdf_dir) if f.endswith(".pdf")]
+    pdfFiles = [f for f in os.listdir(pdfDir) if f.endswith(".pdf")]
+    badFiles = []
+    for filename in tqdm(pdfFiles, desc="Processing NCERT PDFs"):
+        if filename.endswith(".pdf"):
+            correctedLines = readPDFAndWriteClean(filename)
+            if len(correctedLines) > 100:
+                writeCorrectedLines(filename, correctedLines)
+            else:
+                badFiles.append(filename)
 
-for filename in tqdm(pdf_files, desc="Processing NCERT PDFs"):
-    if filename.endswith(".pdf"):
-        readPDF(filename)
-        cleanText(filename)
-
-end = time.time()
-print("✅ All PDFs processed.")
-print("Processing time: {:.2f} seconds.".format(end-start))
+    end = time.time()
+    print("✅ All PDFs processed.")
+    print("⌛️Processing time: {:.2f} seconds.".format(end-start))
+    print(badFiles)

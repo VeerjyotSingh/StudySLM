@@ -1,0 +1,8 @@
+tensorflow
+tensorflow_hub
+tensorflow_metal
+tensorflow_text
+pymupdf
+tqdm
+scikit-learn
+nltk
